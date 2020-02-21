@@ -10,6 +10,7 @@ type GitOptions struct {
 	Owner     string
 	Repo      string
 	Branch    string
+	PRBranch  string
 }
 
 func AddGitArgs(cmd *cobra.Command, o *GitOptions) {
@@ -21,9 +22,12 @@ func AddGitArgs(cmd *cobra.Command, o *GitOptions) {
 		"The Github repository to which we're sending a PR.")
 	cmd.Flags().StringVar(&o.Branch, "branch", "",
 		"The branch we are building a PR against.")
+	cmd.Flags().StringVar(&o.PRBranch, "prbranch", "",
+		"The branch that is created for this PR.")
 
 	_ = cmd.MarkFlagRequired("workspace")
 	_ = cmd.MarkFlagRequired("organization")
 	_ = cmd.MarkFlagRequired("repository")
 	_ = cmd.MarkFlagRequired("branch")
+	_ = cmd.MarkFlagRequired("prbranch")
 }

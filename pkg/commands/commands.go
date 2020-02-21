@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/n3wscott/prbuilder/pkg/builder"
@@ -15,6 +16,35 @@ var (
 	vo = &options.VerboseOptions{}
 )
 
+func NewTopLevelCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "prbuilder",
+		Short:   "Make building GitHub Pull Requests automated.",
+		RunE:    TopLevelRunE,
+		Example: example(),
+	}
+	AddCommands(cmd)
+	return cmd
+}
+
+func example() string {
+	example1 := fmt.Sprintf(`
+prbuilder \
+  --workspace=./ \
+  --organization=n3wscott \
+  --repository=prbuilder \
+  --title="Fix spelling errors" \
+  --branch=master \
+  --body="Produced via: github.com/client9/misspell" \
+  --name="Demo Person" \
+  --email=demo@example.com \
+  --token=abc-123 \
+  --prbranch=demo
+`)
+	return example1
+}
+
+// TopLevelRunE
 func TopLevelRunE(cmd *cobra.Command, args []string) error {
 	// Build up command.
 	i := &builder.Builder{
@@ -26,6 +56,7 @@ func TopLevelRunE(cmd *cobra.Command, args []string) error {
 		Owner:     gito.Owner,
 		Repo:      gito.Repo,
 		Branch:    gito.Branch,
+		PRBranch:  gito.PRBranch,
 
 		// PR options.
 		Title:     pro.Title,
