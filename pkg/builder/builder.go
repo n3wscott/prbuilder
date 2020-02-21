@@ -133,6 +133,8 @@ func (b *Builder) Do() error {
 	})
 	if err != nil {
 		if err.Error() == "remote already exists" {
+			// skip
+		} else {
 			return fmt.Errorf("Error creating new remote: %v", err)
 		}
 	}
