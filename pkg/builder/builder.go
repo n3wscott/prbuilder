@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"path"
 
 	"github.com/google/go-github/github"
@@ -32,6 +31,7 @@ type Builder struct {
 	Owner     string
 	Repo      string
 	Branch    string
+	PRBranch  string
 
 	// PR options.
 	Title     string
@@ -108,18 +108,13 @@ func (b *Builder) Do() error {
 		return fmt.Errorf("Error committing changes: %v", err)
 	}
 
-	// We use the pod name (injected by downward API) as the
-	// branch name so that it is pseudo-randomized and so that
-	// we can trace opened PRs back to logs.
-	branchName := os.Getenv("POD_NAME")
-
 	// Create and checkout a new branch from the commit of the HEAD reference.
 	// This should be roughly equivalent to `git checkout -b {new-branch}`
 	headRef, err := r.Head()
 	if err != nil {
 		return fmt.Errorf("Error fetching workspace HEAD: %v", err)
 	}
-	newBranchName := plumbing.NewBranchReferenceName(branchName)
+	newBranchName := plumbing.NewBranchReferenceName(b.PRBranch)
 	log.Println("new branch", newBranchName)
 	if err := wt.Checkout(&git.CheckoutOptions{
 		Hash:   headRef.Hash(),
@@ -161,7 +156,7 @@ func (b *Builder) Do() error {
 	}
 
 	// Head has the form source-owner:branch, per the Github API docs.
-	head := fmt.Sprintf("%s:%s", b.Username, branchName)
+	head := fmt.Sprintf("%s:%s", b.Username, b.PRBranch)
 
 	// Inject the token (if specified) into the body of the PR, so
 	// that we can identify it's provenance.

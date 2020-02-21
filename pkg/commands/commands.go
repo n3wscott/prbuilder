@@ -34,7 +34,8 @@ prbuilder \
   --organization=n3wscott \
   --repository=prbuilder \
   --title="Fix spelling errors" \
-  --branch=demo \
+  --branch=master \
+  --prbranch=demo \
   --body="Produced via: github.com/client9/misspell" \
   --name="Demo Person" \
   --email=demo@example.com \
@@ -54,6 +55,7 @@ func TopLevelRunE(cmd *cobra.Command, args []string) error {
 		Owner:     gito.Owner,
 		Repo:      gito.Repo,
 		Branch:    gito.Branch,
+		PRBranch:  gito.PRBranch,
 
 		// PR options.
 		Title:     pro.Title,
