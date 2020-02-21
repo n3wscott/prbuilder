@@ -44,6 +44,7 @@ prbuilder \
 	return example1
 }
 
+// TopLevelRunE
 func TopLevelRunE(cmd *cobra.Command, args []string) error {
 	// Build up command.
 	i := &builder.Builder{
