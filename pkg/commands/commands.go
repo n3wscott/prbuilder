@@ -1,24 +1,24 @@
 package commands
 
 import (
-	"fmt"
+	"log"
+
 	"github.com/n3wscott/prbuilder/pkg/builder"
 	"github.com/n3wscott/prbuilder/pkg/commands/options"
 	"github.com/spf13/cobra"
-	"log"
 )
 
 var (
 	gito = &options.GitOptions{}
 	pro  = &options.PullRequestOptions{}
-	do   = &options.DryRunOptions{}
-	vo   = &options.VerboseOptions{}
+	//do   = &options.DryRunOptions{}
+	vo = &options.VerboseOptions{}
 )
 
 func TopLevelRunE(cmd *cobra.Command, args []string) error {
 	// Build up command.
 	i := &builder.Builder{
-		DryRun:  do.DryRun,
+		//DryRun:  do.DryRun,
 		Verbose: vo.Verbose,
 
 		// Git options.
@@ -42,7 +42,7 @@ func TopLevelRunE(cmd *cobra.Command, args []string) error {
 }
 
 func AddCommands(topLevel *cobra.Command) {
-	options.AddDryRunArg(topLevel, do)
+	//options.AddDryRunArg(topLevel, do)
 	options.AddGitArgs(topLevel, gito)
 	options.AddPullRequestArgs(topLevel, pro)
 	options.AddVerboseArg(topLevel, vo)
