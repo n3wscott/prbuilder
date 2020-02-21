@@ -9,6 +9,6 @@ import (
 func main() {
 	cmd := commands.NewTopLevelCommand()
 	if err := cmd.Execute(); err != nil {
-		log.Fatalf("123error during command execution: %v", err)
+		log.Fatalf("error during command execution: %v", err)
 	}
 }
