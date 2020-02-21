@@ -41,7 +41,9 @@ prbuilder \
   --email=demo@example.com \
   --token=abc-123
 `)
+
 	return example1
+
 }
 
 // TopLevelRunE
