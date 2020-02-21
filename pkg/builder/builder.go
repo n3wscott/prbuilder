@@ -132,6 +132,12 @@ func (b *Builder) Do() error {
 		URLs: []string{fmt.Sprintf("https://github.com/%s/%s.git", b.Username, b.Repo)},
 	})
 	if err != nil {
+		if err.Error() == "remote already exists" {
+			return fmt.Errorf("Error creating new remote: %v", err)
+		}
+	}
+	remote, err = r.Remote(b.Username)
+	if err != nil {
 		return fmt.Errorf("Error creating new remote: %v", err)
 	}
 
