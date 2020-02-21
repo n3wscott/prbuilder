@@ -2,6 +2,7 @@ package builder
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -16,6 +17,10 @@ import (
 
 	client "github.com/mattmoor/bindings/pkg/github"
 	"github.com/mattmoor/knobots/pkg/comment"
+)
+
+const (
+	statusNotFound = "Not Found"
 )
 
 type Builder struct {
@@ -190,6 +195,10 @@ func (b *Builder) cleanupOlderPRs() error {
 	for {
 		prs, resp, err := ghc.PullRequests.List(ctx, b.Owner, b.Repo, lopt)
 		if err != nil {
+			ghe := &github.ErrorResponse{}
+			if errors.As(err, &ghe) && ghe.Message == statusNotFound {
+				return nil
+			}
 			return err
 		}
 		for _, pr := range prs {
