@@ -35,15 +35,13 @@ prbuilder \
   --repository=prbuilder \
   --title="Fix spelling errors" \
   --branch=master \
-  --prbranch=demo \
   --body="Produced via: github.com/client9/misspell" \
   --name="Demo Person" \
   --email=demo@example.com \
-  --token=abc-123
+  --token=abc-123 \
+  --prbranch=demo
 `)
-
 	return example1
-
 }
 
 // TopLevelRunE
