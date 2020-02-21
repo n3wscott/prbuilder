@@ -120,6 +120,7 @@ func (b *Builder) Do() error {
 		return fmt.Errorf("Error fetching workspace HEAD: %v", err)
 	}
 	newBranchName := plumbing.NewBranchReferenceName(branchName)
+	log.Println("new branch", newBranchName)
 	if err := wt.Checkout(&git.CheckoutOptions{
 		Hash:   headRef.Hash(),
 		Branch: newBranchName,
