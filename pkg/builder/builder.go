@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"path"
 
 	"github.com/google/go-github/github"
 	"gopkg.in/src-d/go-git.v4"
@@ -24,8 +25,9 @@ const (
 // TODO: support signoff.
 
 type Builder struct {
-	DryRun  bool
-	Verbose bool
+	DryRun          bool
+	Verbose         bool
+	SkipLockChanges bool
 
 	// Git options.
 	Workspace    string
@@ -65,11 +67,11 @@ func (b *Builder) Commit(r *git.Repository) (plumbing.ReferenceName, error) {
 		changes = false
 	}
 
-	//nonGopkgCount := 0
+	nonGopkgCount := 0
 	for p := range st {
-		//if path.Base(p) != "Gopkg.lock" {
-		//	nonGopkgCount++
-		//}
+		if path.Base(p) != "Gopkg.lock" {
+			nonGopkgCount++
+		}
 		_, err = wt.Add(p)
 		if err != nil {
 			return "", fmt.Errorf("Error staging %q: %v", p, err)
@@ -77,21 +79,30 @@ func (b *Builder) Commit(r *git.Repository) (plumbing.ReferenceName, error) {
 		// Display any changed we do find: `git status --porcelain`
 		log.Printf("Added - %v", p)
 	}
-	// Sometimes Gopkg.lock changes block PRs from landing. TODO: make this a flag for the bots to ignore.
-	//if nonGopkgCount == 0 {
-	//	log.Println("Only Gopkg.lock files changed (skipping PR).")
-	//	changes = false
-	//}
+	// If we want to ignore lock changes, just return.
+	if b.SkipLockChanges && nonGopkgCount == 0 {
+		log.Println("Only Gopkg.lock files changed (skipping PR).")
+		changes = false
+	}
+
+	if changes {
+		commitMessage := b.Title + "\n\n" + b.Body
+		// Commit the staged changes to the repo.
+		if _, err := wt.Commit(commitMessage, &git.CommitOptions{Author: b.Signature}); err != nil {
+			return "", fmt.Errorf("Error committing changes: %v", err)
+		}
+	}
 
 	var rn plumbing.ReferenceName
+
 	// Commit branch is optional.
 	if b.CommitBranch != nil {
-		// Create and checkout a new branch from the commit of the HEAD reference.
-		// This should be roughly equivalent to `git checkout -b {new-branch}`
 		headRef, err := r.Head()
 		if err != nil {
 			return "", fmt.Errorf("Error fetching workspace HEAD: %v", err)
 		}
+		// Create and checkout a new branch from the commit of the HEAD reference.
+		// This should be roughly equivalent to `git checkout -b {new-branch}`
 		newBranchName := plumbing.NewBranchReferenceName(*b.CommitBranch)
 		log.Println("new branch", newBranchName)
 		if err := wt.Checkout(&git.CheckoutOptions{
@@ -102,23 +113,13 @@ func (b *Builder) Commit(r *git.Repository) (plumbing.ReferenceName, error) {
 		}); err != nil {
 			return "", fmt.Errorf("Error checkout out new branch: %v", err)
 		}
-		rn = plumbing.ReferenceName(*b.CommitBranch)
+		rn = newBranchName
 	} else {
 		ref, err := r.Head()
 		if err != nil {
 			return "", err
 		}
 		rn = ref.Name()
-	}
-
-	if changes {
-		commitMessage := b.Title + "\n\n" + b.Body
-
-		// Commit the staged changes to the repo.
-		if _, err := wt.Commit(commitMessage, &git.CommitOptions{Author: b.Signature}); err != nil {
-			return "", fmt.Errorf("Error committing changes: %v", err)
-		}
-		return rn, nil
 	}
 
 	return rn, nil
@@ -207,8 +208,11 @@ func (b *Builder) Do() error {
 	if err != nil {
 		return err
 	}
+
 	// Always match local name to remote name.
 	rs := config.RefSpec(fmt.Sprintf("%s:%s", rn, rn))
+
+	log.Printf("Pushing to refspec: %s", rs.String())
 
 	if err := b.Push(r, rs); err != nil {
 		return err
