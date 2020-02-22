@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	gito = &options.GitOptions{}
-	pro  = &options.PullRequestOptions{}
+	pro = &options.PullRequestOptions{}
+	fso = &options.FileSystemOptions{}
 	//do   = &options.DryRunOptions{}
 	vo = &options.VerboseOptions{}
 )
@@ -46,23 +46,39 @@ prbuilder \
 
 // TopLevelRunE
 func TopLevelRunE(cmd *cobra.Command, args []string) error {
+	signature, err := pro.Signature()
+	if err != nil {
+		return err
+	}
+
+	token, _ := pro.Token()
+
 	// Build up command.
 	i := &builder.Builder{
 		//DryRun:  do.DryRun,
 		Verbose: vo.Verbose,
 
+		// Auth
+		Username: pro.Username(),
+		Password: pro.Password(),
+
+		// Filesystem
+		Workspace: fso.Workspace,
+
 		// Git options.
-		Workspace: gito.Workspace,
-		Owner:     gito.Owner,
-		Repo:      gito.Repo,
-		Branch:    gito.Branch,
-		PRBranch:  gito.PRBranch,
+		Owner:        pro.Owner(),
+		Repo:         pro.Repo(),
+		Branch:       pro.BaseBranch,
+		CommitBranch: pro.CommitBranch(),
 
 		// PR options.
-		Title:     pro.Title,
-		Body:      pro.Body,
-		Token:     pro.Token,
-		Signature: pro.Signature(),
+		Title: pro.Title,
+		Body:  pro.Body,
+		Token: token,
+
+		// Author
+		Signature: signature,
+		Signoff:   pro.Signoff,
 	}
 
 	// Run it.
@@ -73,8 +89,9 @@ func TopLevelRunE(cmd *cobra.Command, args []string) error {
 }
 
 func AddCommands(topLevel *cobra.Command) {
+
 	//options.AddDryRunArg(topLevel, do)
-	options.AddGitArgs(topLevel, gito)
+	options.AddFileSystemArgs(topLevel, fso)
 	options.AddPullRequestArgs(topLevel, pro)
 	options.AddVerboseArg(topLevel, vo)
 
