@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"path"
 
 	"github.com/google/go-github/github"
 	"gopkg.in/src-d/go-git.v4"
@@ -22,109 +21,110 @@ const (
 	statusNotFound = "Not Found"
 )
 
+// TODO: support signoff.
+
 type Builder struct {
 	DryRun  bool
 	Verbose bool
 
 	// Git options.
-	Workspace string
-	Owner     string
-	Repo      string
-	Branch    string
-	PRBranch  string
+	Workspace    string
+	Owner        string
+	Repo         string
+	Branch       string
+	CommitBranch *string
 
 	// PR options.
 	Title     string
 	Body      string
-	Token     string
-	Signature object.Signature
+	Token     *string
+	Signature *object.Signature
+	Signoff   bool
 
 	// Binding
 	Username string
 	Password string
 }
 
-func must(s string, err error) string {
-	if err != nil {
-		panic(err)
-	}
-	return s
-}
-
-func (b *Builder) Do() error {
-	b.Username = must(client.ReadKey("username"))
-	b.Password = must(client.AccessToken())
-
-	// Clean up older PRs as the first thing we do so that if the latest batch of
-	// changes needs nothing we don't leave old PRs around.
-	err := b.cleanupOlderPRs()
-	if err != nil {
-		return fmt.Errorf("Error cleaning up PRs: %v", err)
-	}
-
-	r, err := git.PlainOpen(b.Workspace)
-	if err != nil {
-		return fmt.Errorf("Error opening /workspace: %v", err)
-	}
-
+func (b *Builder) Commit(r *git.Repository) (plumbing.ReferenceName, error) {
 	// First, build the worktree.
 	wt, err := r.Worktree()
 	if err != nil {
-		return fmt.Errorf("Error fetching worktree: %v", err)
+		return "", fmt.Errorf("Error fetching worktree: %v", err)
 	}
 
 	// Check the status of the worktree, and if there aren't any changes
 	// bail out we're done.
 	st, err := wt.Status()
 	if err != nil {
-		return fmt.Errorf("Error fetching worktree status: %v", err)
+		return "", fmt.Errorf("Error fetching worktree status: %v", err)
 	}
+	changes := true
 	if len(st) == 0 {
 		log.Println("No changes")
-		return nil
+		changes = false
 	}
-	// Display any changed we do find: `git status --porcelain`
-	log.Printf("%v", st)
 
-	nonGopkgCount := 0
+	//nonGopkgCount := 0
 	for p := range st {
-		if path.Base(p) != "Gopkg.lock" {
-			nonGopkgCount++
-		}
+		//if path.Base(p) != "Gopkg.lock" {
+		//	nonGopkgCount++
+		//}
 		_, err = wt.Add(p)
 		if err != nil {
-			return fmt.Errorf("Error staging %q: %v", p, err)
+			return "", fmt.Errorf("Error staging %q: %v", p, err)
 		}
+		// Display any changed we do find: `git status --porcelain`
+		log.Printf("Added - %v", p)
 	}
-	if nonGopkgCount == 0 {
-		log.Println("Only Gopkg.lock files changed (skipping PR).")
-		return nil
+	// Sometimes Gopkg.lock changes block PRs from landing. TODO: make this a flag for the bots to ignore.
+	//if nonGopkgCount == 0 {
+	//	log.Println("Only Gopkg.lock files changed (skipping PR).")
+	//	changes = false
+	//}
+
+	var rn plumbing.ReferenceName
+	// Commit branch is optional.
+	if b.CommitBranch != nil {
+		// Create and checkout a new branch from the commit of the HEAD reference.
+		// This should be roughly equivalent to `git checkout -b {new-branch}`
+		headRef, err := r.Head()
+		if err != nil {
+			return "", fmt.Errorf("Error fetching workspace HEAD: %v", err)
+		}
+		newBranchName := plumbing.NewBranchReferenceName(*b.CommitBranch)
+		log.Println("new branch", newBranchName)
+		if err := wt.Checkout(&git.CheckoutOptions{
+			Hash:   headRef.Hash(),
+			Branch: newBranchName,
+			Create: true,
+			Force:  true,
+		}); err != nil {
+			return "", fmt.Errorf("Error checkout out new branch: %v", err)
+		}
+		rn = plumbing.ReferenceName(*b.CommitBranch)
+	} else {
+		ref, err := r.Head()
+		if err != nil {
+			return "", err
+		}
+		rn = ref.Name()
 	}
 
-	commitMessage := b.Title + "\n\n" + b.Body
+	if changes {
+		commitMessage := b.Title + "\n\n" + b.Body
 
-	// Commit the staged changes to the repo.
-	if _, err := wt.Commit(commitMessage, &git.CommitOptions{Author: &b.Signature}); err != nil {
-		return fmt.Errorf("Error committing changes: %v", err)
+		// Commit the staged changes to the repo.
+		if _, err := wt.Commit(commitMessage, &git.CommitOptions{Author: b.Signature}); err != nil {
+			return "", fmt.Errorf("Error committing changes: %v", err)
+		}
+		return rn, nil
 	}
 
-	// Create and checkout a new branch from the commit of the HEAD reference.
-	// This should be roughly equivalent to `git checkout -b {new-branch}`
-	headRef, err := r.Head()
-	if err != nil {
-		return fmt.Errorf("Error fetching workspace HEAD: %v", err)
-	}
-	newBranchName := plumbing.NewBranchReferenceName(b.PRBranch)
-	log.Println("new branch", newBranchName)
-	if err := wt.Checkout(&git.CheckoutOptions{
-		Hash:   headRef.Hash(),
-		Branch: newBranchName,
-		Create: true,
-		Force:  true,
-	}); err != nil {
-		return fmt.Errorf("Error checkout out new branch: %v", err)
-	}
+	return rn, nil
+}
 
+func (b *Builder) Push(r *git.Repository, rs config.RefSpec) error {
 	// Push the branch to a remote to which we have write access.
 	// TODO(mattmoor): What if the fork doesn't exist, or has another name?
 	remote, err := r.CreateRemote(&config.RemoteConfig{
@@ -144,7 +144,6 @@ func (b *Builder) Do() error {
 	}
 
 	// Publish all local branches to the remote.
-	rs := config.RefSpec(fmt.Sprintf("%s:%s", newBranchName, newBranchName))
 	err = remote.Push(&git.PushOptions{
 		RemoteName: b.Username,
 		RefSpecs:   []config.RefSpec{rs},
@@ -157,31 +156,67 @@ func (b *Builder) Do() error {
 		return fmt.Errorf("Error pushing to remote: %v", err)
 	}
 
+	return nil
+}
+
+func (b *Builder) PR(branch string) error {
+	// Head has the form source-owner:branch, per the Github API docs.
+	head := fmt.Sprintf("%s:%s", b.Username, branch)
+
+	// Inject a signature into the body that will help us clean up matching older PRs.
+	bodyWithSignature := comment.WithSignature(b.Title, b.Body)
+	// Inject the token (if specified) into the body of the PR, so
+	// that we can identify it's provenance.
+	if b.Token != nil {
+		bodyWithSignature = comment.WithSignature(*b.Token, *bodyWithSignature)
+	}
+
 	ctx := context.Background()
 	ghc, err := client.New(ctx)
 	if err != nil {
 		return fmt.Errorf("Error creating github client: %v", err)
 	}
 
-	// Head has the form source-owner:branch, per the Github API docs.
-	head := fmt.Sprintf("%s:%s", b.Username, b.PRBranch)
-
-	// Inject the token (if specified) into the body of the PR, so
-	// that we can identify it's provenance.
-	bodyWithToken := comment.WithSignature(b.Token, b.Body)
-
 	pr, _, err := ghc.PullRequests.Create(ctx, b.Owner, b.Repo, &github.NewPullRequest{
 		Title: &b.Title,
-		// Inject a signature into the body that will help us clean up matching older PRs.
-		Body: comment.WithSignature(b.Title, *bodyWithToken),
-		Head: &head,
-		Base: &b.Branch,
+		Body:  bodyWithSignature,
+		Head:  &head,
+		Base:  &b.Branch,
 	})
 	if err != nil {
 		return fmt.Errorf("Error creating PR: %v", err)
 	}
 
 	log.Printf("Created PR: #%d", pr.GetNumber())
+	return nil
+}
+
+func (b *Builder) Do() error {
+	// Clean up older PRs as the first thing we do so that if the latest batch of
+	// changes needs nothing we don't leave old PRs around.
+	if err := b.cleanupOlderPRs(); err != nil {
+		return fmt.Errorf("Error cleaning up PRs: %v", err)
+	}
+
+	r, err := git.PlainOpen(b.Workspace)
+	if err != nil {
+		return fmt.Errorf("Error opening /workspace: %v", err)
+	}
+
+	rn, err := b.Commit(r)
+	if err != nil {
+		return err
+	}
+	// Always match local name to remote name.
+	rs := config.RefSpec(fmt.Sprintf("%s:%s", rn, rn))
+
+	if err := b.Push(r, rs); err != nil {
+		return err
+	}
+
+	if err := b.PR(rn.String()); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -223,5 +258,3 @@ func (b *Builder) cleanupOlderPRs() error {
 
 	return nil
 }
-
-//demo
