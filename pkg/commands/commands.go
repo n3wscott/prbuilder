@@ -31,16 +31,23 @@ func example() string {
 	example1 := fmt.Sprintf(`
 prbuilder \
   --workspace=./ \
-  --organization=n3wscott \
-  --repository=prbuilder \
+  --repo=n3wscott/prbuilder \
+  --target=master \
+  --title="Doing a demo." \
+  --body="Demo, ignore."
+`)
+	example2 := fmt.Sprintf(`
+prbuilder \
+  --workspace=./ \
+  --repo=n3wscott/prbuilder \
+  --target=master \
   --title="Fix spelling errors" \
-  --branch=master \
   --body="Produced via: github.com/client9/misspell" \
   --name="Demo Person" \
-  --email=demo@example.com \
-  --token=abc-123 \
-  --prbranch=demo
+  --email=demo@example.com
 `)
+	_ = example2
+
 	return example1
 }
 

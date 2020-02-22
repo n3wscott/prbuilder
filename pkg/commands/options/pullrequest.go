@@ -72,7 +72,6 @@ func AddPullRequestArgs(cmd *cobra.Command, o *PullRequestOptions) {
 
 	_ = cmd.MarkFlagRequired("title")
 	_ = cmd.MarkFlagRequired("body")
-	_ = cmd.MarkFlagRequired("token")
 
 	// Signature
 

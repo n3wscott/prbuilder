@@ -21,6 +21,8 @@ const (
 	statusNotFound = "Not Found"
 )
 
+// TODO: support signoff.
+
 type Builder struct {
 	DryRun  bool
 	Verbose bool
