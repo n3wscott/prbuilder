@@ -3,15 +3,13 @@ module github.com/n3wscott/prbuilder
 go 1.13
 
 require (
-	github.com/golang-collections/collections v0.0.0-20130729185459-604e922904d3
-	github.com/golang-collections/go-datastructures v0.0.0-20150211160725-59788d5eb259
 	github.com/golang/protobuf v1.3.3 // indirect
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/mattmoor/bindings v0.0.0-20191202191554-6f3a5f7f5516
 	github.com/mattmoor/knobots v0.0.0-20200219234239-23c29eb99f9a
-	github.com/n3wscott/tomles v0.0.0-20191204001427-c933c9700070
+	github.com/onsi/gomega v1.9.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/spf13/cobra v0.0.6
 	github.com/spf13/pflag v1.0.5 // indirect
