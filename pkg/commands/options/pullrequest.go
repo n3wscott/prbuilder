@@ -1,12 +1,13 @@
 package options
 
 import (
-	client "github.com/mattmoor/bindings/pkg/github"
-	"github.com/tcnksm/go-gitconfig"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	client "github.com/mattmoor/bindings/pkg/github"
 	"github.com/spf13/cobra"
+	"github.com/tcnksm/go-gitconfig"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
@@ -44,7 +45,7 @@ func AddPullRequestArgs(cmd *cobra.Command, o *PullRequestOptions) {
 	//cmd.Flags().StringVar(&o.CompareRepo, "compare-repo", "",
 	//	"The Github modified <owner>/<repo> to create the PR from.")
 	cmd.Flags().StringVarP(&o.commitBranch, "commit-branch", "b", "",
-		"If provided, the branch to create based on the local changes.")
+		"If provided, the branch to create based on the local changes. If value is 'random' a uuid will be used.")
 
 	//cmd.Flags().StringVar(&o.Owner, "organization", "",
 	//	"The Github organization to which we're sending a PR.")
@@ -122,6 +123,10 @@ func (o *PullRequestOptions) Repo() string {
 func (o *PullRequestOptions) CommitBranch() *string {
 	if o.commitBranch == "" {
 		return nil
+	}
+	if o.commitBranch == "random" {
+		id, _ := uuid.NewUUID()
+		o.commitBranch = id.String()
 	}
 	return &o.commitBranch
 }

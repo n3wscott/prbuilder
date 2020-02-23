@@ -8,6 +8,7 @@ require (
 	github.com/golang/protobuf v1.3.3 // indirect
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-querystring v1.0.0 // indirect
+	github.com/google/uuid v1.1.1
 	github.com/mattmoor/bindings v0.0.0-20191202191554-6f3a5f7f5516
 	github.com/mattmoor/knobots v0.0.0-20200219234239-23c29eb99f9a
 	github.com/n3wscott/tomles v0.0.0-20191204001427-c933c9700070
