@@ -194,6 +194,9 @@ func (b *Builder) PR(branch string) error {
 }
 
 func (b *Builder) Do() error {
+
+	log.Printf("Debug: %#v\n\n", b)
+
 	// Clean up older PRs as the first thing we do so that if the latest batch of
 	// changes needs nothing we don't leave old PRs around.
 	if err := b.cleanupOlderPRs(); err != nil {
