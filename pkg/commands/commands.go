@@ -16,7 +16,7 @@ var (
 	vo = &options.VerboseOptions{}
 )
 
-func NewTopLevelCommand() *cobra.Command {
+func New() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "prbuilder",
 		Short:   "Make building GitHub Pull Requests automated.",
