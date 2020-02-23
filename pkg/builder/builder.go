@@ -48,6 +48,7 @@ type Builder struct {
 	Password string
 }
 
+// Commit will commit changes to the local branch, and then optionally branch a new branch if set.
 func (b *Builder) Commit(r *git.Repository) (plumbing.ReferenceName, error) {
 	// First, build the worktree.
 	wt, err := r.Worktree()
