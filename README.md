@@ -1,7 +1,5 @@
 # PR Builder
 
-# tomles
-
 `prbuilder` is a tool for making prs to github.
 
 [![GoDoc](https://godoc.org/github.com/n3wscott/prbuilder?status.svg)](https://godoc.org/github.com/n3wscott/prbuilder)
